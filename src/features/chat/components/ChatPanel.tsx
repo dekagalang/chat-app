@@ -168,9 +168,9 @@ export default function ChatPanel({
         ) : (
           <div className="flex h-full items-center justify-center px-6 py-10">
             <div className="w-full max-w-xl rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center text-gray-500 shadow-sm">
-              <div className="text-xl font-semibold text-gray-900">Pilih chat di sebelah kiri</div>
+              <div className="text-xl font-semibold text-gray-900">Tidak ada chat saat ini</div>
               <p className="mt-3 text-sm text-gray-500">
-                Pilih percakapan untuk melihat pesan dan mulai chat.
+                Mulai percakapan dengan memilih chat dari daftar atau masuk sebagai buyer untuk membuat chat baru.
               </p>
             </div>
           </div>

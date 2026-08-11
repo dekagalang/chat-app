@@ -93,11 +93,15 @@ export default function useSocketChat({
   userId,
   userType,
   conversationId,
+  joinConversationIds,
+  onChatMessage,
 }: {
   url: string;
   userId?: string;
   userType?: UserType;
   conversationId?: string;
+  joinConversationIds?: string[];
+  onChatMessage?: (message: ChatMessage) => void;
 }) {
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef<string | undefined>(conversationId);
@@ -141,7 +145,20 @@ export default function useSocketChat({
     };
 
     const handleChatMessage = (message: ChatMessage) => {
-      setMessages((prev) => [...prev, message]);
+      if (!message.conversationId) return;
+
+      onChatMessage?.(message);
+
+      setMessages((prev) => {
+        const activeConversationId = conversationIdRef.current;
+        if (activeConversationId && message.conversationId !== activeConversationId) {
+          return prev;
+        }
+
+        return [...prev, message];
+      });
+
+      joinConversation(message.conversationId);
     };
 
     const handleUserStatus = (status: UserStatus) => {
@@ -181,7 +198,7 @@ export default function useSocketChat({
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [url, userId, userType]);
+  }, [url, userId, userType, onChatMessage]);
 
   function send(payload: ChatMessage) {
     const socket = socketRef.current;
@@ -191,7 +208,7 @@ export default function useSocketChat({
 
   function joinConversation(id: string) {
     const socket = socketRef.current;
-    if (!socket) return;
+    if (!socket || !id) return;
     socket.emit("join-conversation", { conversationId: id });
   }
 
@@ -226,11 +243,22 @@ export default function useSocketChat({
   }, [conversationId, url]);
 
   useEffect(() => {
-    if (!connected || !conversationId) return;
+    if (!connected) return;
     const socket = socketRef.current;
     if (!socket) return;
-    socket.emit("join-conversation", { conversationId });
-  }, [connected, conversationId]);
+
+    const roomIds = new Set<string>();
+    if (conversationId) roomIds.add(conversationId);
+    if (joinConversationIds?.length) {
+      joinConversationIds.forEach((id) => {
+        if (id) roomIds.add(id);
+      });
+    }
+
+    roomIds.forEach((roomId) => {
+      socket.emit("join-conversation", { conversationId: roomId });
+    });
+  }, [connected, conversationId, joinConversationIds]);
 
   function getSocket() {
     return socketRef.current;

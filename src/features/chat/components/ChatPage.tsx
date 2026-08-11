@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import type {
   ChatMessage as SocketChatMessage,
@@ -49,11 +49,70 @@ export default function ChatPage() {
   const shouldAutoScrollRef = useRef(true);
   const messageListRef = useRef<HTMLDivElement | null>(null);
 
+  const handleChatMessage = useCallback(
+    (message: SocketChatMessage) => {
+      if (!message.conversationId) return;
+
+      const conversationId = message.conversationId;
+      const lastMessageAt = message.createdAt || new Date().toISOString();
+      const preview = getMessagePreview(message as MessageItem);
+      const isIncoming = message.senderId !== userId;
+
+      setSummaries((prev) => {
+        const existing = prev.find((item) => item.conversationId === conversationId);
+
+        if (existing) {
+          return prev
+            .map((item) =>
+              item.conversationId === conversationId
+                ? {
+                    ...item,
+                    lastMessage: preview,
+                    lastMessageAt,
+                    unreadCount: existing.unreadCount + (isIncoming ? 1 : 0),
+                  }
+                : item,
+            )
+            .sort((a, b) => {
+              if (!a.lastMessageAt) return 1;
+              if (!b.lastMessageAt) return -1;
+              return (
+                new Date(b.lastMessageAt).getTime() -
+                new Date(a.lastMessageAt).getTime()
+              );
+            });
+        }
+
+        return [
+          {
+            conversationId,
+            partnerId: conversationId,
+            partnerName: getConversationTitle(conversationId, userType),
+            lastMessage: preview,
+            lastMessageAt,
+            unreadCount: isIncoming ? 1 : 0,
+          },
+          ...prev,
+        ].sort((a, b) => {
+          if (!a.lastMessageAt) return 1;
+          if (!b.lastMessageAt) return -1;
+          return (
+            new Date(b.lastMessageAt).getTime() -
+            new Date(a.lastMessageAt).getTime()
+          );
+        });
+      });
+    },
+    [userId, userType],
+  );
+
   const { messages, send, statuses, markConversationRead } = useSocketChat({
     url: CHAT_API_BASE,
     userId,
     userType,
     conversationId: selectedConversationId ?? undefined,
+    joinConversationIds: summaries.map((item) => item.conversationId),
+    onChatMessage: handleChatMessage,
   });
 
   useEffect(() => {
@@ -130,6 +189,7 @@ export default function ChatPage() {
         });
 
         const searchParams = new URLSearchParams({ role: rawRole });
+        searchParams.set("userId", roleId);
         if (rawRole === "seller") {
           searchParams.set("sellerId", roleId);
         } else {
@@ -187,8 +247,23 @@ export default function ChatPage() {
       setLoading(true);
 
       try {
-        const res = await fetch(`${CHAT_API_BASE}/conversations`);
-        const data = (await res.json()) as Array<
+        const query = new URLSearchParams();
+
+        if (userType === "seller") {
+          query.set("role", "seller");
+          if (userId) query.set("sellerId", userId);
+        } else if (userType === "cs") {
+          query.set("role", "cs");
+          if (userId) query.set("csId", userId);
+        }
+
+        if (userId && userType !== "buyer") {
+          query.set("userId", userId);
+        }
+
+        const roleSpecificUrl = `${CHAT_API_BASE}/conversations${query.toString() ? `?${query.toString()}` : ""}`;
+        const roleSpecificRes = await fetch(roleSpecificUrl);
+        let data = [] as Array<
           ConversationItem & {
             conversationId?: string;
             partner?: {
@@ -199,6 +274,17 @@ export default function ChatPage() {
             } | null;
           }
         >;
+
+        if (roleSpecificRes.ok) {
+          data = (await roleSpecificRes.json()) as typeof data;
+        }
+
+        if (!data.length && roleSpecificRes.ok) {
+          const fallbackRes = await fetch(`${CHAT_API_BASE}/conversations`);
+          if (fallbackRes.ok) {
+            data = (await fallbackRes.json()) as typeof data;
+          }
+        }
 
         const available = data.filter((conversation) => {
           const conversationId =
@@ -274,19 +360,31 @@ export default function ChatPage() {
 
         if (!active) return;
 
-        setSummaries(
-          details.sort((a, b) => {
-            if (!a.lastMessageAt) return 1;
-            if (!b.lastMessageAt) return -1;
-            return (
-              new Date(b.lastMessageAt).getTime() -
-              new Date(a.lastMessageAt).getTime()
-            );
-          }),
-        );
+        const sortedDetails = details.sort((a, b) => {
+          if (!a.lastMessageAt) return 1;
+          if (!b.lastMessageAt) return -1;
+          return (
+            new Date(b.lastMessageAt).getTime() -
+            new Date(a.lastMessageAt).getTime()
+          );
+        });
+
+        setSummaries(sortedDetails);
+
+        if (sortedDetails.length === 0) {
+          setSelectedConversationId(null);
+          setSavedPartnerProfile(null);
+        } else if (
+          selectedConversationId &&
+          !sortedDetails.some((item) => item.conversationId === selectedConversationId)
+        ) {
+          setSelectedConversationId(sortedDetails[0].conversationId);
+        }
       } catch {
         if (!active) return;
         setSummaries([]);
+        setSelectedConversationId(null);
+        setSavedPartnerProfile(null);
       } finally {
         if (active) setLoading(false);
       }
@@ -297,10 +395,22 @@ export default function ChatPage() {
     return () => {
       active = false;
     };
-  }, [userType, userId]);
+  }, [userType, userId, selectedConversationId]);
+
+  const clearConversationUnread = useCallback(
+    (conversationId: string) => {
+      setSummaries((prev) =>
+        prev.map((item) =>
+          item.conversationId === conversationId ? { ...item, unreadCount: 0 } : item,
+        ),
+      );
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!selectedConversationId || !userId) return;
+
     markConversationRead(selectedConversationId, userId);
   }, [selectedConversationId, userId, markConversationRead]);
 
@@ -429,6 +539,8 @@ export default function ChatPage() {
     };
 
     send(payload);
+    markConversationRead(selectedConversationId, userId);
+    clearConversationUnread(selectedConversationId);
     setText("");
   };
 
