@@ -1,0 +1,1 @@
+export { useAutolarisProductDetail } from "./useAutolarisProductDetail";
