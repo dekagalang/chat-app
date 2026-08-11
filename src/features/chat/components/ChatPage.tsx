@@ -49,6 +49,47 @@ export default function ChatPage() {
   const shouldAutoScrollRef = useRef(true);
   const messageListRef = useRef<HTMLDivElement | null>(null);
 
+  const resolvePartnerFromConversation = useCallback(
+    (
+      conversation: ConversationItem & {
+        conversationId?: string;
+        partner?: {
+          id?: string | number | null;
+          name?: string | null;
+          image?: string | null;
+          type?: string | null;
+        } | null;
+      },
+      currentUserId: string,
+    ) => {
+      const conversationId = conversation.conversationId ?? conversation.id ?? "";
+      const participants = Array.isArray(conversation.participants)
+        ? conversation.participants
+        : DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
+            ?.participants ?? [];
+
+      const fallbackPartnerId =
+        participants.find((id) => id !== currentUserId && id !== userType) ??
+        participants.find((id) => id !== currentUserId) ??
+        "";
+
+      const partnerId =
+        conversation.partner?.id && String(conversation.partner.id) !== currentUserId
+          ? String(conversation.partner.id)
+          : fallbackPartnerId;
+
+      const partnerName =
+        conversation.partner?.name && partnerId === String(conversation.partner.id)
+          ? conversation.partner.name
+          : getConversationTitle(conversationId, userType);
+
+      const partnerImage = conversation.partner?.image ?? "";
+
+      return { partnerId, partnerName, partnerImage };
+    },
+    [userType],
+  );
+
   const handleChatMessage = useCallback(
     (message: SocketChatMessage) => {
       if (!message.conversationId) return;
@@ -319,13 +360,8 @@ export default function ChatPage() {
                 return count;
               }, 0);
 
-              const partnerName =
-                conversation.partner?.name ??
-                getConversationTitle(rawConversationId, userType);
-              const partnerId =
-                conversation.partner?.id ??
-                (conversation.participants?.find((id) => id !== userType) ?? "");
-              const partnerImage = conversation.partner?.image ?? "";
+              const { partnerId, partnerName, partnerImage } =
+                resolvePartnerFromConversation(conversation, userId);
 
               return {
                 conversationId: rawConversationId,
@@ -337,13 +373,8 @@ export default function ChatPage() {
                 unreadCount,
               } as ConversationSummary;
             } catch {
-              const partnerName =
-                conversation.partner?.name ??
-                getConversationTitle(rawConversationId, userType);
-              const partnerId =
-                conversation.partner?.id ??
-                (conversation.participants?.find((id) => id !== userType) ?? "");
-              const partnerImage = conversation.partner?.image ?? "";
+              const { partnerId, partnerName, partnerImage } =
+                resolvePartnerFromConversation(conversation, userId);
 
               return {
                 conversationId: rawConversationId,
@@ -395,7 +426,7 @@ export default function ChatPage() {
     return () => {
       active = false;
     };
-  }, [userType, userId, selectedConversationId]);
+  }, [userType, userId, selectedConversationId, resolvePartnerFromConversation]);
 
   const clearConversationUnread = useCallback(
     (conversationId: string) => {
@@ -443,11 +474,18 @@ export default function ChatPage() {
     }
   }, [messages, selectedConversationId]);
 
+  const getPartnerTypeForConversation = useCallback(
+    (conversationId: string) => {
+      const partnerId = conversationId.split("-").find((id) => id !== userType) ?? "";
+      if (partnerId === "seller") return "seller";
+      if (partnerId === "cs") return "cs";
+      return "buyer";
+    },
+    [userType],
+  );
+
   const partnerName = useMemo(() => {
     if (!selectedConversationId) return "";
-    if (userType === "seller" || userType === "cs") {
-      return "Buyer";
-    }
 
     return (
       savedPartnerProfile?.name ??
@@ -459,10 +497,8 @@ export default function ChatPage() {
 
   const partnerType = useMemo<UserType>(() => {
     if (!selectedConversationId) return "buyer";
-    if (selectedConversationId.includes("seller")) return "seller";
-    if (selectedConversationId.includes("cs")) return "cs";
-    return "buyer";
-  }, [selectedConversationId]);
+    return getPartnerTypeForConversation(selectedConversationId);
+  }, [selectedConversationId, getPartnerTypeForConversation]);
 
   const partnerAvatarClass =
     partnerType === "seller"
@@ -501,6 +537,7 @@ export default function ChatPage() {
     conversationId: string,
     summary?: ConversationSummary,
   ) => {
+    const partnerTypeForConversation = getPartnerTypeForConversation(conversationId);
     setSelectedConversationId(conversationId);
 
     if (summary) {
@@ -508,7 +545,7 @@ export default function ChatPage() {
         id: summary.partnerId,
         name: summary.partnerName,
         image: summary.partnerImage,
-        type: partnerType,
+        type: partnerTypeForConversation,
       });
     }
 
@@ -520,7 +557,7 @@ export default function ChatPage() {
           id: summary.partnerId,
           name: summary.partnerName,
           image: summary.partnerImage ?? "",
-          type: partnerType,
+          type: partnerTypeForConversation,
         }),
       );
     }
@@ -561,6 +598,7 @@ export default function ChatPage() {
           summaries={summaries}
           selectedConversationId={selectedConversationId}
           onOpenConversation={handleOpenConversation}
+          userType={userType}
         />
       </aside>
       <ChatPanel

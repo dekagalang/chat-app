@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type {
   ConversationSummary,
+  UserType,
 } from "@/features/chat/hooks/useSocketChat";
 import { formatDateLabel, getAvatarInitial } from "@/features/chat/utils";
 
@@ -11,6 +12,7 @@ export default function ChatList({
   summaries,
   selectedConversationId,
   onOpenConversation,
+  userType,
 }: {
   loading: boolean;
   summaries: ConversationSummary[];
@@ -19,6 +21,7 @@ export default function ChatList({
     conversationId: string,
     summary?: ConversationSummary,
   ) => void;
+  userType: UserType;
 }) {
   return (
     <div className="h-[calc(100vh-56px)] overflow-y-auto px-4 py-4">
@@ -43,7 +46,9 @@ export default function ChatList({
             }`}
           >
             <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
-              {item.partnerImage ? (
+              {userType === "seller" ? (
+                getAvatarInitial(item.partnerName)
+              ) : item.partnerImage ? (
                 <Image
                   src={item.partnerImage}
                   alt={item.partnerName || "Partner"}
