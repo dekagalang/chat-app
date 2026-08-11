@@ -8,7 +8,7 @@ import { Check, CheckCheck, Copy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/format";
 import { formatOrderDate, formatOrderStatus } from "@/lib/utils";
-import type { ChatMessage as ChatMessageType, UserType } from "@/hooks/useSocketChat";
+import type { ChatMessage as ChatMessageType, UserType } from "@/features/chat/hooks/useSocketChat";
 
 export default function ChatMessage({
   message,
@@ -36,7 +36,6 @@ export default function ChatMessage({
 
   const isMe = senderId === currentUserId;
   const messageStatus = isMe ? (isRead ? "read" : "sent") : undefined;
-  const isOrderMessage = type === "order";
 
   const rawProductId = productId ?? productSnapshot?.productId;
 
