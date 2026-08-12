@@ -9,7 +9,10 @@
     "start": "dotenv -e .env.production next start",
     "lint": "eslint",
     "clean": "rm -rf .next/cache",
-    "clean:all": "rm -rf .next"
+    "clean:all": "rm -rf .next",
+    "deploy": "bash scripts/publish-build.sh",
+    "deploy:build": "bash scripts/publish-build.sh",
+    "deploy:server": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.3",
