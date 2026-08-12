@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import type {
   ChatMessage as SocketChatMessage,
@@ -35,7 +41,10 @@ const DEFAULT_CONVERSATIONS: ConversationItem[] = [
 export default function ChatPage() {
   const [summaries, setSummaries] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    string | null
+  >(null);
+  const selectedConversationIdRef = useRef<string | null>(null);
   const [userType, setUserType] = useState<UserType>("buyer");
   const [userId, setUserId] = useState<string>("buyer");
   const [savedPartnerProfile, setSavedPartnerProfile] = useState<{
@@ -62,11 +71,12 @@ export default function ChatPage() {
       },
       currentUserId: string,
     ) => {
-      const conversationId = conversation.conversationId ?? conversation.id ?? "";
+      const conversationId =
+        conversation.conversationId ?? conversation.id ?? "";
       const participants = Array.isArray(conversation.participants)
         ? conversation.participants
-        : DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
-            ?.participants ?? [];
+        : (DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
+            ?.participants ?? []);
 
       const fallbackPartnerId =
         participants.find((id) => id !== currentUserId && id !== userType) ??
@@ -74,12 +84,14 @@ export default function ChatPage() {
         "";
 
       const partnerId =
-        conversation.partner?.id && String(conversation.partner.id) !== currentUserId
+        conversation.partner?.id &&
+        String(conversation.partner.id) !== currentUserId
           ? String(conversation.partner.id)
           : fallbackPartnerId;
 
       const partnerName =
-        conversation.partner?.name && partnerId === String(conversation.partner.id)
+        conversation.partner?.name &&
+        partnerId === String(conversation.partner.id)
           ? conversation.partner.name
           : getConversationTitle(conversationId, userType);
 
@@ -100,7 +112,9 @@ export default function ChatPage() {
       const isIncoming = message.senderId !== userId;
 
       setSummaries((prev) => {
-        const existing = prev.find((item) => item.conversationId === conversationId);
+        const existing = prev.find(
+          (item) => item.conversationId === conversationId,
+        );
 
         if (existing) {
           return prev
@@ -198,10 +212,10 @@ export default function ChatPage() {
       params.get("image") ??
       "";
 
-    const storedUserType =
-      window.sessionStorage.getItem("chatUserType") as UserType | null;
+    const storedUserType = window.sessionStorage.getItem(
+      "chatUserType",
+    ) as UserType | null;
     const storedUserId = window.sessionStorage.getItem("chatUserId");
-    const storedConversation = window.sessionStorage.getItem("chatConversationId");
     const rawPartner = window.sessionStorage.getItem("chatPartnerSnapshot");
 
     const parsedPartnerProfile = rawPartner
@@ -229,53 +243,12 @@ export default function ChatPage() {
           type: rawRole,
         });
 
-        const searchParams = new URLSearchParams({ role: rawRole });
-        searchParams.set("userId", roleId);
-        if (rawRole === "seller") {
-          searchParams.set("sellerId", roleId);
-        } else {
-          searchParams.set("csId", roleId);
-        }
-
-        if (params.get("buyerId")) {
-          searchParams.set("buyerId", params.get("buyerId")!);
-        }
-
-        async function loadConversation() {
-          try {
-            const response = await fetch(`${CHAT_API_BASE}/conversations?${searchParams}`);
-            if (!response.ok) {
-              setSelectedConversationId(rawRole === "seller" ? "buyer-seller" : "buyer-cs");
-              return;
-            }
-
-            const conversations = (await response.json()) as Array<{
-              conversationId?: string;
-              partner?: { id?: string; name?: string; image?: string } | null;
-            }>;
-
-            const selectedConversation = conversations[0];
-            if (selectedConversation?.conversationId) {
-              setSelectedConversationId(selectedConversation.conversationId);
-            } else {
-              setSelectedConversationId(rawRole === "seller" ? "buyer-seller" : "buyer-cs");
-            }
-
-            if (selectedConversation?.partner) {
-              setSavedPartnerProfile(selectedConversation.partner);
-            }
-          } catch {
-            setSelectedConversationId(rawRole === "seller" ? "buyer-seller" : "buyer-cs");
-          }
-        }
-
-        void loadConversation();
         return;
       }
 
       if (storedUserType) setUserType(storedUserType);
       if (storedUserId) setUserId(storedUserId);
-      if (storedConversation) setSelectedConversationId(storedConversation);
+      setSelectedConversationId(null);
     };
 
     Promise.resolve().then(applyStoredState);
@@ -292,10 +265,8 @@ export default function ChatPage() {
 
         if (userType === "seller") {
           query.set("role", "seller");
-          if (userId) query.set("sellerId", userId);
         } else if (userType === "cs") {
           query.set("role", "cs");
-          if (userId) query.set("csId", userId);
         }
 
         if (userId && userType !== "buyer") {
@@ -332,8 +303,8 @@ export default function ChatPage() {
             conversation.conversationId ?? conversation.id ?? "";
           const participants = Array.isArray(conversation.participants)
             ? conversation.participants
-            : DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
-                ?.participants ?? [];
+            : (DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
+                ?.participants ?? []);
 
           return canSeeConversation(
             { id: conversationId, participants },
@@ -352,7 +323,9 @@ export default function ChatPage() {
               );
 
               const messages = (await res.json()) as MessageItem[];
-              const lastMessage = messages.length ? messages[messages.length - 1] : null;
+              const lastMessage = messages.length
+                ? messages[messages.length - 1]
+                : null;
               const unreadCount = messages.reduce((count, message) => {
                 if (message.senderId !== userId && !message.isRead) {
                   return count + 1;
@@ -404,12 +377,16 @@ export default function ChatPage() {
 
         if (sortedDetails.length === 0) {
           setSelectedConversationId(null);
+          selectedConversationIdRef.current = null;
           setSavedPartnerProfile(null);
         } else if (
-          selectedConversationId &&
-          !sortedDetails.some((item) => item.conversationId === selectedConversationId)
+          selectedConversationIdRef.current &&
+          !sortedDetails.some(
+            (item) => item.conversationId === selectedConversationIdRef.current,
+          )
         ) {
           setSelectedConversationId(sortedDetails[0].conversationId);
+          selectedConversationIdRef.current = sortedDetails[0].conversationId;
         }
       } catch {
         if (!active) return;
@@ -426,18 +403,17 @@ export default function ChatPage() {
     return () => {
       active = false;
     };
-  }, [userType, userId, selectedConversationId, resolvePartnerFromConversation]);
+  }, [userType, userId, resolvePartnerFromConversation]);
 
-  const clearConversationUnread = useCallback(
-    (conversationId: string) => {
-      setSummaries((prev) =>
-        prev.map((item) =>
-          item.conversationId === conversationId ? { ...item, unreadCount: 0 } : item,
-        ),
-      );
-    },
-    [],
-  );
+  const clearConversationUnread = useCallback((conversationId: string) => {
+    setSummaries((prev) =>
+      prev.map((item) =>
+        item.conversationId === conversationId
+          ? { ...item, unreadCount: 0 }
+          : item,
+      ),
+    );
+  }, []);
 
   useEffect(() => {
     if (!selectedConversationId || !userId) return;
@@ -476,7 +452,8 @@ export default function ChatPage() {
 
   const getPartnerTypeForConversation = useCallback(
     (conversationId: string) => {
-      const partnerId = conversationId.split("-").find((id) => id !== userType) ?? "";
+      const partnerId =
+        conversationId.split("-").find((id) => id !== userType) ?? "";
       if (partnerId === "seller") return "seller";
       if (partnerId === "cs") return "cs";
       return "buyer";
@@ -504,11 +481,10 @@ export default function ChatPage() {
     partnerType === "seller"
       ? "bg-sky-100 text-sky-700"
       : partnerType === "cs"
-      ? "bg-emerald-100 text-emerald-700"
-      : "bg-slate-200 text-slate-700";
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-slate-200 text-slate-700";
 
-  const partnerAvatarLabel =
-    partnerType === "seller" ? "S" : partnerType === "cs" ? "CS" : "B";
+  
 
   const partnerStatus =
     statuses[savedPartnerProfile?.id ?? ""] ??
@@ -522,14 +498,15 @@ export default function ChatPage() {
       ? partnerStatus.online
         ? "Online"
         : partnerStatus.lastSeen
-        ? `Last seen ${new Date(
-            partnerStatus.lastSeen,
-          ).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          })}`
-        : "Offline"
+          ? `Last seen ${new Date(partnerStatus.lastSeen).toLocaleTimeString(
+              [],
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              },
+            )}`
+          : "Offline"
       : `${partnerType === "seller" ? "Seller" : partnerType === "cs" ? "Customer Service" : "Chat"} status tidak tersedia`
     : "";
 
@@ -537,8 +514,10 @@ export default function ChatPage() {
     conversationId: string,
     summary?: ConversationSummary,
   ) => {
-    const partnerTypeForConversation = getPartnerTypeForConversation(conversationId);
+    const partnerTypeForConversation =
+      getPartnerTypeForConversation(conversationId);
     setSelectedConversationId(conversationId);
+    selectedConversationIdRef.current = conversationId;
 
     if (summary) {
       setSavedPartnerProfile({
@@ -548,6 +527,9 @@ export default function ChatPage() {
         type: partnerTypeForConversation,
       });
     }
+
+    clearConversationUnread(conversationId);
+    markConversationRead(conversationId, userId);
 
     window.sessionStorage.setItem("chatConversationId", conversationId);
     if (summary) {
@@ -606,7 +588,6 @@ export default function ChatPage() {
         messages={messages}
         savedPartnerProfile={savedPartnerProfile}
         partnerAvatarClass={partnerAvatarClass}
-        partnerAvatarLabel={partnerAvatarLabel}
         partnerName={partnerName}
         statusLabel={statusLabel}
         showScrollToBottom={showScrollToBottom}
