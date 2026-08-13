@@ -7,7 +7,7 @@ set -euo pipefail
 
 APP_DIR=${APP_DIR:-$(pwd)}
 APP_NAME=${APP_NAME:-chat-app}
-PORT=${PORT:-3000}
+PORT=${PORT:-5000}
 
 cd "$APP_DIR"
 
