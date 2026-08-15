@@ -25,7 +25,7 @@ import {
 } from "@/features/chat/utils";
 
 const CHAT_API_BASE =
-  process.env.NEXT_PUBLIC_CHAT_API_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_CHAT_API_URL ?? "http://localhost:5001";
 
 const DEFAULT_CONVERSATIONS: ConversationItem[] = [
   {
@@ -62,6 +62,7 @@ export default function ChatPage() {
     (
       conversation: ConversationItem & {
         conversationId?: string;
+        threadId?: string;
         partner?: {
           id?: string | number | null;
           name?: string | null;
@@ -72,7 +73,7 @@ export default function ChatPage() {
       currentUserId: string,
     ) => {
       const conversationId =
-        conversation.conversationId ?? conversation.id ?? "";
+        conversation.threadId ?? conversation.id ?? conversation.conversationId ?? "";
       const participants = Array.isArray(conversation.participants)
         ? conversation.participants
         : (DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
@@ -278,6 +279,7 @@ export default function ChatPage() {
         let data = [] as Array<
           ConversationItem & {
             conversationId?: string;
+            threadId?: string;
             partner?: {
               id?: string | number | null;
               name?: string | null;
@@ -291,16 +293,9 @@ export default function ChatPage() {
           data = (await roleSpecificRes.json()) as typeof data;
         }
 
-        if (!data.length && roleSpecificRes.ok) {
-          const fallbackRes = await fetch(`${CHAT_API_BASE}/conversations`);
-          if (fallbackRes.ok) {
-            data = (await fallbackRes.json()) as typeof data;
-          }
-        }
-
         const available = data.filter((conversation) => {
           const conversationId =
-            conversation.conversationId ?? conversation.id ?? "";
+            conversation.threadId ?? conversation.id ?? conversation.conversationId ?? "";
           const participants = Array.isArray(conversation.participants)
             ? conversation.participants
             : (DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
@@ -315,7 +310,7 @@ export default function ChatPage() {
         const details = await Promise.all(
           available.map(async (conversation) => {
             const rawConversationId =
-              conversation.conversationId ?? conversation.id ?? "";
+              conversation.threadId ?? conversation.id ?? conversation.conversationId ?? "";
 
             try {
               const res = await fetch(

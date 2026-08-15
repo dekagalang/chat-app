@@ -9,6 +9,10 @@ export const getPartnerName = (userType: UserType, partnerId: string) => {
   if (partnerId === "seller") return "Seller";
   if (partnerId === "cs") return "Customer Service";
 
+  if (userType === "seller" || userType === "cs") {
+    return `Buyer#${partnerId}`;
+  }
+
   return partnerId;
 };
 
@@ -16,7 +20,26 @@ export const getConversationTitle = (
   conversationId: string,
   userType: UserType,
 ) => {
-  const partnerId = conversationId.split("-").find((id) => id !== userType) ?? "";
+  const parts = conversationId.split("-");
+  const currentUserToken = userType;
+  const literalPartner = parts.find(
+    (id) => id !== currentUserToken && ["buyer", "seller", "cs"].includes(id),
+  );
+  const buyerId = parts.find(
+    (id) => id !== currentUserToken && !["buyer", "seller", "cs"].includes(id),
+  );
+
+  if (userType === "seller" || userType === "cs") {
+    if (buyerId) return `Buyer#${buyerId}`;
+    if (literalPartner === "buyer") return "Buyer";
+  }
+
+  if (userType === "buyer") {
+    if (literalPartner === "seller") return "Seller";
+    if (literalPartner === "cs") return "Customer Service";
+  }
+
+  const partnerId = parts.find((id) => id !== userType) ?? "";
   return getPartnerName(userType, partnerId);
 };
 
@@ -88,16 +111,18 @@ export const canSeeConversation = (
     return false;
   }
 
+  const ids = (conversation.id ?? "").split("-");
+
   if (userType === "buyer") {
-    return true;
+    return ids.includes("buyer");
   }
 
   if (userType === "seller") {
-    return conversation.id === "buyer-seller";
+    return ids.includes("seller");
   }
 
   if (userType === "cs") {
-    return conversation.id === "buyer-cs";
+    return ids.includes("cs");
   }
 
   return false;

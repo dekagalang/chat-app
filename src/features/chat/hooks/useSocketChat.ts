@@ -7,6 +7,7 @@ export type UserType = "buyer" | "seller" | "cs";
 
 export type ConversationItem = {
   id: string;
+  threadId?: string;
   participants: string[];
 };
 
