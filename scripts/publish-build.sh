@@ -7,6 +7,22 @@ BUILD_REPO_DIR=${BUILD_REPO_DIR:-../shop-chat-web-build}
 BUILD_BRANCH=${BUILD_BRANCH:-main}
 AUTO_PUSH=${AUTO_PUSH:-1}
 COMMIT_MESSAGE=${COMMIT_MESSAGE:-"Deploy standalone build"}
+BUILD_ENV_FILE=${BUILD_ENV_FILE:-.env.production}
+
+if [ ! -f "$BUILD_ENV_FILE" ]; then
+  echo "Missing $BUILD_ENV_FILE. Production public environment must be available before building."
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+. "$BUILD_ENV_FILE"
+set +a
+
+if [ -z "${NEXT_PUBLIC_CHAT_API_URL:-}" ] || [[ "$NEXT_PUBLIC_CHAT_API_URL" == *"localhost"* ]]; then
+  echo "NEXT_PUBLIC_CHAT_API_URL must be a public, non-localhost URL when publishing a production build."
+  exit 1
+fi
 
 echo "Building standalone Next.js app..."
 pnpm build
