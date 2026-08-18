@@ -168,12 +168,14 @@ export default function useSocketChat({
 
     const handleMessagesRead = (payload: {
       conversationId: string;
-      messageIds: string[];
+      messageIds?: string[];
       readerId: string;
     }) => {
       setMessages((prev) =>
         prev.map((message) =>
-          payload.messageIds.includes(message._id as string)
+          message.conversationId === payload.conversationId &&
+          message.senderId !== payload.readerId &&
+          (!payload.messageIds || payload.messageIds.includes(message._id as string))
             ? { ...message, isRead: true }
             : message,
         ),
