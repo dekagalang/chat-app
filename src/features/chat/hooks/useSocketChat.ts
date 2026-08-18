@@ -79,6 +79,12 @@ export type ChatMessage = {
   productId?: string | number;
   productSnapshot?: ChatProductSnapshot | null;
   orderSnapshot?: ChatOrderSnapshot | null;
+  partner?: {
+    id?: string | number | null;
+    name?: string | null;
+    image?: string | null;
+    type?: string | null;
+  } | null;
   isRead?: boolean;
   createdAt?: string;
 };

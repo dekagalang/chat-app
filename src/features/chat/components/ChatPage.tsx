@@ -267,6 +267,21 @@ export default function ChatPage() {
     };
 
     Promise.resolve().then(applyStoredState);
+
+    // Listen for sessionStorage changes from other tabs/windows (e.g., from live chat page)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "chatPartnerSnapshot" && e.newValue) {
+        try {
+          const newProfile = JSON.parse(e.newValue);
+          setSavedPartnerProfile(newProfile);
+        } catch {
+          // ignore parse error
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   useEffect(() => {
@@ -415,6 +430,26 @@ export default function ChatPage() {
     };
   }, [identityReady, userType, userId, resolvePartnerFromConversation]);
 
+  // Sync partner profile when window regains focus (e.g., returning from live chat page)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleWindowFocus = () => {
+      const rawPartner = window.sessionStorage.getItem("chatPartnerSnapshot");
+      if (rawPartner) {
+        try {
+          const profile = JSON.parse(rawPartner);
+          setSavedPartnerProfile(profile);
+        } catch {
+          // ignore parse error
+        }
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    return () => window.removeEventListener("focus", handleWindowFocus);
+  }, []);
+
   const clearConversationUnread = useCallback((conversationId: string) => {
     setSummaries((prev) =>
       prev.map((item) =>
@@ -559,12 +594,23 @@ export default function ChatPage() {
     const trimmed = text.trim();
     if (!trimmed || !selectedConversationId) return;
 
+    // Validate seller ID exists for buyer→seller messages
+    if (partnerType === "seller" && !savedPartnerProfile?.id) {
+      return;
+    }
+
     const payload: SocketChatMessage = {
       conversationId: selectedConversationId,
       senderId: userId,
       senderType: userType,
       type: "text",
       text: trimmed,
+      partner: savedPartnerProfile ? {
+        id: savedPartnerProfile.id,
+        name: savedPartnerProfile.name,
+        image: savedPartnerProfile.image,
+        type: savedPartnerProfile.type ?? partnerType,
+      } : undefined,
     };
 
     send(payload);
