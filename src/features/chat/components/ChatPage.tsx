@@ -47,6 +47,7 @@ export default function ChatPage() {
   const selectedConversationIdRef = useRef<string | null>(null);
   const [userType, setUserType] = useState<UserType>("buyer");
   const [userId, setUserId] = useState<string>("buyer");
+  const [identityReady, setIdentityReady] = useState(false);
   const [savedPartnerProfile, setSavedPartnerProfile] = useState<{
     id?: string;
     name?: string;
@@ -164,18 +165,17 @@ export default function ChatPage() {
 
   const { messages, send, statuses, markConversationRead } = useSocketChat({
     url: CHAT_API_BASE,
-    userId,
-    userType,
+    userId: identityReady ? userId : undefined,
+    userType: identityReady ? userType : undefined,
     conversationId: selectedConversationId ?? undefined,
-    joinConversationIds: summaries.map((item) => item.conversationId),
     onChatMessage: handleChatMessage,
   });
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !identityReady) return;
     window.sessionStorage.setItem("chatUserType", userType);
     window.sessionStorage.setItem("chatUserId", userId);
-  }, [userType, userId]);
+  }, [identityReady, userType, userId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -243,6 +243,7 @@ export default function ChatPage() {
           image: roleImage || undefined,
           type: rawRole,
         });
+        setIdentityReady(true);
 
         return;
       }
@@ -250,12 +251,14 @@ export default function ChatPage() {
       if (storedUserType) setUserType(storedUserType);
       if (storedUserId) setUserId(storedUserId);
       setSelectedConversationId(null);
+      setIdentityReady(true);
     };
 
     Promise.resolve().then(applyStoredState);
   }, []);
 
   useEffect(() => {
+    if (!identityReady) return;
     let active = true;
 
     async function loadConversations() {
@@ -398,7 +401,7 @@ export default function ChatPage() {
     return () => {
       active = false;
     };
-  }, [userType, userId, resolvePartnerFromConversation]);
+  }, [identityReady, userType, userId, resolvePartnerFromConversation]);
 
   const clearConversationUnread = useCallback((conversationId: string) => {
     setSummaries((prev) =>

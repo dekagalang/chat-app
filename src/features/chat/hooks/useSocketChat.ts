@@ -94,18 +94,18 @@ export default function useSocketChat({
   userId,
   userType,
   conversationId,
-  joinConversationIds,
   onChatMessage,
 }: {
   url: string;
   userId?: string;
   userType?: UserType;
   conversationId?: string;
-  joinConversationIds?: string[];
   onChatMessage?: (message: ChatMessage) => void;
 }) {
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef<string | undefined>(conversationId);
+  const joinedConversationIdsRef = useRef(new Set<string>());
+  const onChatMessageRef = useRef(onChatMessage);
   const [connected, setConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [statuses, setStatuses] = useState<Record<string, UserStatus>>({});
@@ -115,7 +115,13 @@ export default function useSocketChat({
   }, [conversationId]);
 
   useEffect(() => {
+    onChatMessageRef.current = onChatMessage;
+  }, [onChatMessage]);
+
+  useEffect(() => {
     if (!userId || !userType) return;
+
+    const joinedConversationIds = joinedConversationIdsRef.current;
 
     const socket = io(url, {
       query: {
@@ -125,15 +131,18 @@ export default function useSocketChat({
       autoConnect: false,
       transports: ["websocket", "polling"],
       reconnectionAttempts: 5,
+      reconnectionDelay: 1_000,
+      reconnectionDelayMax: 5_000,
     });
 
     socketRef.current = socket;
 
     const handleConnect = () => {
       setConnected(true);
+      joinedConversationIds.clear();
       const currentConversation = conversationIdRef.current;
       if (currentConversation) {
-        socket.emit("join-conversation", { conversationId: currentConversation });
+        joinConversation(currentConversation);
       }
     };
 
@@ -148,18 +157,16 @@ export default function useSocketChat({
     const handleChatMessage = (message: ChatMessage) => {
       if (!message.conversationId) return;
 
-      onChatMessage?.(message);
+      onChatMessageRef.current?.(message);
 
       setMessages((prev) => {
         const activeConversationId = conversationIdRef.current;
-        if (activeConversationId && message.conversationId !== activeConversationId) {
+        if (message.conversationId !== activeConversationId) {
           return prev;
         }
 
         return [...prev, message];
       });
-
-      joinConversation(message.conversationId);
     };
 
     const handleUserStatus = (status: UserStatus) => {
@@ -200,8 +207,9 @@ export default function useSocketChat({
       socket.off("messagesRead", handleMessagesRead);
       socket.disconnect();
       socketRef.current = null;
+      joinedConversationIds.clear();
     };
-  }, [url, userId, userType, onChatMessage]);
+  }, [url, userId, userType]);
 
   function send(payload: ChatMessage) {
     const socket = socketRef.current;
@@ -211,7 +219,9 @@ export default function useSocketChat({
 
   function joinConversation(id: string) {
     const socket = socketRef.current;
-    if (!socket || !id) return;
+    if (!socket || !socket.connected || !id) return;
+    if (joinedConversationIdsRef.current.has(id)) return;
+    joinedConversationIdsRef.current.add(id);
     socket.emit("join-conversation", { conversationId: id });
   }
 
@@ -246,22 +256,22 @@ export default function useSocketChat({
   }, [conversationId, url]);
 
   useEffect(() => {
-    if (!connected) return;
+    if (!connected || !conversationId) return;
     const socket = socketRef.current;
     if (!socket) return;
 
-    const roomIds = new Set<string>();
-    if (conversationId) roomIds.add(conversationId);
-    if (joinConversationIds?.length) {
-      joinConversationIds.forEach((id) => {
-        if (id) roomIds.add(id);
-      });
-    }
-
-    roomIds.forEach((roomId) => {
-      socket.emit("join-conversation", { conversationId: roomId });
+    joinedConversationIdsRef.current.forEach((joinedConversationId) => {
+      if (joinedConversationId !== conversationId) {
+        socket.emit("leave-conversation", { conversationId: joinedConversationId });
+        joinedConversationIdsRef.current.delete(joinedConversationId);
+      }
     });
-  }, [connected, conversationId, joinConversationIds]);
+
+    if (joinedConversationIdsRef.current.has(conversationId)) return;
+
+    joinedConversationIdsRef.current.add(conversationId);
+    socket.emit("join-conversation", { conversationId });
+  }, [connected, conversationId]);
 
   function getSocket() {
     return socketRef.current;
