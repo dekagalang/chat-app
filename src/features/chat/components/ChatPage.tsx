@@ -38,6 +38,18 @@ const DEFAULT_CONVERSATIONS: ConversationItem[] = [
   },
 ];
 
+const isIncomingForUser = (
+  message: { senderId?: string; senderType?: string | null },
+  userId: string,
+  userType: UserType,
+) => {
+  if (message.senderType && message.senderType !== userType) {
+    return true;
+  }
+
+  return Boolean(message.senderId && message.senderId !== userId);
+};
+
 export default function ChatPage() {
   const [summaries, setSummaries] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,7 +123,7 @@ export default function ChatPage() {
       const conversationId = message.conversationId;
       const lastMessageAt = message.createdAt || new Date().toISOString();
       const preview = getMessagePreview(message as MessageItem);
-      const isIncoming = message.senderId !== userId;
+      const isIncoming = isIncomingForUser(message, userId, userType);
 
       setSummaries((prev) => {
         const existing = prev.find(
@@ -325,7 +337,7 @@ export default function ChatPage() {
                 ? messages[messages.length - 1]
                 : null;
               const unreadCount = messages.reduce((count, message) => {
-                if (message.senderId !== userId && !message.isRead) {
+                if (!message.isRead && isIncomingForUser(message, userId, userType)) {
                   return count + 1;
                 }
                 return count;
