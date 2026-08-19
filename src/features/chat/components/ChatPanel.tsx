@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { Input } from "antd";
+import { DownOutlined } from "@ant-design/icons";
 import { Button } from "@/components/ui/Button";
 import ChatMessage from "@/features/chat/components/ChatMessage";
 import { getAvatarInitial } from "@/features/chat/utils";
@@ -23,6 +24,7 @@ export default function ChatPanel({
   onTextChange,
   handleSend,
   handleScrollToBottom,
+  onMessageListScroll,
   messageListRef,
   userId,
   userType,
@@ -45,6 +47,7 @@ export default function ChatPanel({
   onTextChange: (value: string) => void;
   handleSend: () => void;
   handleScrollToBottom: () => void;
+  onMessageListScroll: (event: React.UIEvent<HTMLDivElement>) => void;
   messageListRef: React.RefObject<HTMLDivElement | null>;
   userId: string;
   userType: UserType;
@@ -52,15 +55,15 @@ export default function ChatPanel({
 }) {
   return (
     <main className="flex-1 bg-slate-50">
-      <div className="flex h-[calc(100vh-56px)] flex-col">
+      <div className="flex h-screen flex-col">
         {selectedConversationId ? (
           <>
-            <div className="border-b border-gray-100 bg-white px-3 py-3 shadow-sm">
-              <div className="flex items-center gap-3">
+            <div className="h-14 border-b border-gray-100 bg-white px-4 shadow-sm">
+              <div className="flex h-full items-center gap-3">
                 <div
-                  className={`relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full ${
+                  className={`relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full ${
                     userType === "seller" ? "bg-sky-100 text-sky-700" : partnerAvatarClass
-                  } text-sm font-semibold`}
+                  } text-xs font-semibold`}
                 >
                   {userType === "seller" ? (
                     getAvatarInitial(partnerName)
@@ -68,8 +71,8 @@ export default function ChatPanel({
                     <Image
                       src={savedPartnerProfile.image}
                       alt={savedPartnerProfile.name || "Partner"}
-                      width={56}
-                      height={56}
+                      width={40}
+                      height={40}
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -77,15 +80,19 @@ export default function ChatPanel({
                   )}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="min-w-0 truncate text-[15px] font-medium text-gray-800">
+                  <h3 className="min-w-0 truncate text-lg font-semibold text-gray-900">
                     {partnerName}
                   </h3>
-                  <div className="mt-1 text-xs text-gray-400">{statusLabel}</div>
+                  <div className="text-xs text-gray-500">{statusLabel}</div>
                 </div>
               </div>
             </div>
 
-            <div ref={messageListRef} className="flex-1 overflow-y-auto px-6 py-4">
+            <div
+              ref={messageListRef}
+              onScroll={onMessageListScroll}
+              className="flex-1 overflow-y-auto px-6 py-4"
+            >
               {messages.length === 0 ? (
                 <div className="mx-auto mt-12 w-full max-w-xl rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 text-center text-sm text-gray-500">
                   <div className="text-lg font-semibold text-gray-900">Belum ada pesan</div>
@@ -132,7 +139,7 @@ export default function ChatPanel({
               )}
             </div>
 
-            <div className="border-t border-gray-200 bg-white px-6 py-4">
+            <div className="border-t border-gray-200 bg-white px-4 py-2">
               <div className="flex items-center gap-3 rounded-full border border-gray-200 bg-slate-50 px-3 py-2 shadow-sm">
                 <Input.TextArea
                   value={text}
@@ -157,18 +164,22 @@ export default function ChatPanel({
                 </Button>
               </div>
             </div>
-            {showScrollToBottom && (
-              <div className="fixed bottom-28 right-6 z-50">
-                <Button
-                  type="primary"
-                  shape="circle"
-                  onClick={handleScrollToBottom}
-                  className="flex h-11 w-11 items-center justify-center p-0 shadow-lg"
-                >
-                  ↓
-                </Button>
-              </div>
-            )}
+            <div
+              className={`fixed bottom-28 right-6 z-50 transition-all duration-300 ease-out ${
+                showScrollToBottom
+                  ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                  : "pointer-events-none translate-y-2 scale-90 opacity-0"
+              }`}
+            >
+              <Button
+                type="primary"
+                shape="circle"
+                onClick={handleScrollToBottom}
+                className="flex h-11 w-11 items-center justify-center p-0 shadow-lg"
+                icon={<DownOutlined />}
+                aria-label="Scroll ke bawah"
+              />
+            </div>
           </>
         ) : (
           <div className="flex h-full items-center justify-center px-6 py-10">

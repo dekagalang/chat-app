@@ -34,7 +34,9 @@ export default function ChatMessage({
     orderSnapshot,
   } = message;
 
-  const isMe = senderId === currentUserId;
+  const isMe = message.sender?.type
+    ? message.sender.type === currentUserType
+    : senderId === currentUserId;
   const messageStatus = isMe ? (isRead ? "read" : "sent") : undefined;
 
   const rawProductId = productId ?? productSnapshot?.productId;

@@ -7,12 +7,13 @@ export type UserType = "buyer" | "seller" | "cs";
 
 export type ConversationItem = {
   id: string;
-  threadId?: string;
-  participants: string[];
+  participants: Array<string | { type?: string }>;
 };
 
 export type MessageItem = {
   senderId?: string;
+  sender?: { type?: string; name?: string | null };
+  senderType?: string;
   isRead?: boolean;
   text?: string;
   type?: string;
@@ -70,6 +71,7 @@ export type ChatOrderSnapshot = {
 
 export type ChatMessage = {
   _id?: string;
+  sender?: { type?: string; name?: string | null };
   conversationId?: string;
   senderId?: string;
   senderType?: UserType | "cs" | string;
@@ -90,7 +92,7 @@ export type ChatMessage = {
 };
 
 export type UserStatus = {
-  userId: string;
+  conversationId: string;
   online: boolean;
   lastSeen: string | null;
 };
@@ -111,6 +113,7 @@ export default function useSocketChat({
   const socketRef = useRef<Socket | null>(null);
   const conversationIdRef = useRef<string | undefined>(conversationId);
   const joinedConversationIdsRef = useRef(new Set<string>());
+  const pendingReadConversationIdsRef = useRef(new Set<string>());
   const onChatMessageRef = useRef(onChatMessage);
   const [connected, setConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -150,6 +153,12 @@ export default function useSocketChat({
       if (currentConversation) {
         joinConversation(currentConversation);
       }
+      pendingReadConversationIdsRef.current.forEach((pendingConversationId) => {
+        socket.emit("mark-conversation-read", {
+          conversationId: pendingConversationId,
+        });
+      });
+      pendingReadConversationIdsRef.current.clear();
     };
 
     const handleDisconnect = () => {
@@ -175,19 +184,14 @@ export default function useSocketChat({
       });
     };
 
-    const handleUserStatus = (status: UserStatus) => {
-      setStatuses((prev) => ({ ...prev, [status.userId]: status }));
-    };
-
     const handleMessagesRead = (payload: {
       conversationId: string;
       messageIds?: string[];
-      readerId: string;
+      readerId?: string;
     }) => {
       setMessages((prev) =>
         prev.map((message) =>
           message.conversationId === payload.conversationId &&
-          message.senderId !== payload.readerId &&
           (!payload.messageIds || payload.messageIds.includes(message._id as string))
             ? { ...message, isRead: true }
             : message,
@@ -199,7 +203,11 @@ export default function useSocketChat({
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", handleConnectError);
     socket.on("chatMessage", handleChatMessage);
-    socket.on("userStatus", handleUserStatus);
+    const handleConversationStatus = (status: UserStatus) => {
+      setStatuses((prev) => ({ ...prev, [status.conversationId]: status }));
+    };
+
+    socket.on("conversationStatus", handleConversationStatus);
     socket.on("messagesRead", handleMessagesRead);
 
     socket.connect();
@@ -209,7 +217,7 @@ export default function useSocketChat({
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleConnectError);
       socket.off("chatMessage", handleChatMessage);
-      socket.off("userStatus", handleUserStatus);
+      socket.off("conversationStatus", handleConversationStatus);
       socket.off("messagesRead", handleMessagesRead);
       socket.disconnect();
       socketRef.current = null;
@@ -231,10 +239,13 @@ export default function useSocketChat({
     socket.emit("join-conversation", { conversationId: id });
   }
 
-  function markConversationRead(conversationId: string, readerId?: string) {
+  function markConversationRead(conversationId: string) {
     const socket = socketRef.current;
-    if (!socket || !readerId) return;
-    socket.emit("mark-conversation-read", { conversationId, readerId });
+    if (!socket?.connected) {
+      pendingReadConversationIdsRef.current.add(conversationId);
+      return;
+    }
+    socket.emit("mark-conversation-read", { conversationId });
   }
 
   useEffect(() => {

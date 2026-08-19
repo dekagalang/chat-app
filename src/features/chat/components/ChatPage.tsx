@@ -39,11 +39,12 @@ const DEFAULT_CONVERSATIONS: ConversationItem[] = [
 ];
 
 const isIncomingForUser = (
-  message: { senderId?: string; senderType?: string | null },
+  message: { senderId?: string; senderType?: string | null; sender?: { type?: string } },
   userId: string,
   userType: UserType,
 ) => {
-  if (message.senderType && message.senderType !== userType) {
+  const senderType = message.sender?.type ?? message.senderType;
+  if (senderType && senderType !== userType) {
     return true;
   }
 
@@ -53,6 +54,7 @@ const isIncomingForUser = (
 export default function ChatPage() {
   const [summaries, setSummaries] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const initialConversationLoadRef = useRef(true);
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null);
@@ -83,37 +85,19 @@ export default function ChatPage() {
           type?: string | null;
         } | null;
       },
-      currentUserId: string,
     ) => {
       const conversationId =
         conversation.threadId ?? conversation.id ?? conversation.conversationId ?? "";
-      const participants = Array.isArray(conversation.participants)
-        ? conversation.participants
-        : (DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
-            ?.participants ?? []);
-
-      const fallbackPartnerId =
-        participants.find((id) => id !== currentUserId && id !== userType) ??
-        participants.find((id) => id !== currentUserId) ??
-        "";
-
-      const partnerId =
-        conversation.partner?.id &&
-        String(conversation.partner.id) !== currentUserId
-          ? String(conversation.partner.id)
-          : fallbackPartnerId;
-
+      const partnerId = conversationId;
       const partnerName =
-        conversation.partner?.name &&
-        partnerId === String(conversation.partner.id)
-          ? conversation.partner.name
-          : getConversationTitle(conversationId, userType);
+        conversation.partner?.name ??
+        (conversation.partner?.type === "cs" ? "Customer Service" : "Seller");
 
       const partnerImage = conversation.partner?.image ?? "";
 
       return { partnerId, partnerName, partnerImage };
     },
-    [userType],
+    [],
   );
 
   const handleChatMessage = useCallback(
@@ -136,6 +120,7 @@ export default function ChatPage() {
               item.conversationId === conversationId
                 ? {
                     ...item,
+                  partnerName: message.sender?.name ?? item.partnerName,
                     lastMessage: preview,
                     lastMessageAt,
                     unreadCount: existing.unreadCount + (isIncoming ? 1 : 0),
@@ -156,7 +141,8 @@ export default function ChatPage() {
           {
             conversationId,
             partnerId: conversationId,
-            partnerName: getConversationTitle(conversationId, userType),
+            partnerName:
+              message.sender?.name ?? getConversationTitle(conversationId, userType),
             lastMessage: preview,
             lastMessageAt,
             unreadCount: isIncoming ? 1 : 0,
@@ -182,6 +168,29 @@ export default function ChatPage() {
     conversationId: selectedConversationId ?? undefined,
     onChatMessage: handleChatMessage,
   });
+
+  const clearConversationUnread = useCallback((conversationId: string) => {
+    setSummaries((prev) =>
+      prev.map((item) =>
+        item.conversationId === conversationId
+          ? { ...item, unreadCount: 0 }
+          : item,
+      ),
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!messages.length || !shouldAutoScrollRef.current) return;
+    const element = messageListRef.current;
+    if (!element) return;
+
+    element.scrollTo({ top: element.scrollHeight, behavior: "auto" });
+    setShowScrollToBottom(false);
+  }, [messages]);
+
+  useEffect(() => {
+    shouldAutoScrollRef.current = true;
+  }, [selectedConversationId]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !identityReady) return;
@@ -289,7 +298,9 @@ export default function ChatPage() {
     let active = true;
 
     async function loadConversations() {
-      setLoading(true);
+      if (initialConversationLoadRef.current) {
+        setLoading(true);
+      }
 
       try {
         const query = new URLSearchParams();
@@ -359,7 +370,11 @@ export default function ChatPage() {
               }, 0);
 
               const { partnerId, partnerName, partnerImage } =
-                resolvePartnerFromConversation(conversation, userId);
+                resolvePartnerFromConversation(conversation);
+
+              if (messages.length === 0) {
+                return null;
+              }
 
               return {
                 conversationId: rawConversationId,
@@ -371,25 +386,16 @@ export default function ChatPage() {
                 unreadCount,
               } as ConversationSummary;
             } catch {
-              const { partnerId, partnerName, partnerImage } =
-                resolvePartnerFromConversation(conversation, userId);
-
-              return {
-                conversationId: rawConversationId,
-                partnerId,
-                partnerName,
-                partnerImage,
-                lastMessage: "Mulai chat",
-                lastMessageAt: undefined,
-                unreadCount: 0,
-              } as ConversationSummary;
+              return null;
             }
           }),
         );
 
         if (!active) return;
 
-        const sortedDetails = details.sort((a, b) => {
+        const sortedDetails = details.filter(
+          (detail): detail is ConversationSummary => detail !== null,
+        ).sort((a, b) => {
           if (!a.lastMessageAt) return 1;
           if (!b.lastMessageAt) return -1;
           return (
@@ -419,14 +425,21 @@ export default function ChatPage() {
         setSelectedConversationId(null);
         setSavedPartnerProfile(null);
       } finally {
-        if (active) setLoading(false);
+        if (active && initialConversationLoadRef.current) {
+          initialConversationLoadRef.current = false;
+          setLoading(false);
+        }
       }
     }
 
     loadConversations();
+    const refreshTimer = window.setInterval(() => {
+      void loadConversations();
+    }, 5000);
 
     return () => {
       active = false;
+      window.clearInterval(refreshTimer);
     };
   }, [identityReady, userType, userId, resolvePartnerFromConversation]);
 
@@ -450,50 +463,17 @@ export default function ChatPage() {
     return () => window.removeEventListener("focus", handleWindowFocus);
   }, []);
 
-  const clearConversationUnread = useCallback((conversationId: string) => {
-    setSummaries((prev) =>
-      prev.map((item) =>
-        item.conversationId === conversationId
-          ? { ...item, unreadCount: 0 }
-          : item,
-      ),
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!selectedConversationId || !userId) return;
-
-    markConversationRead(selectedConversationId, userId);
-  }, [selectedConversationId, userId, markConversationRead]);
-
-  useEffect(() => {
-    const element = messageListRef.current;
-    if (!element) return;
-
-    const handleScroll = () => {
+  const handleMessageListScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      const element = event.currentTarget;
       const distanceToBottom =
         element.scrollHeight - element.scrollTop - element.clientHeight;
       const isNearBottom = distanceToBottom <= 120;
       shouldAutoScrollRef.current = isNearBottom;
       setShowScrollToBottom(!isNearBottom);
-    };
-
-    element.addEventListener("scroll", handleScroll);
-    handleScroll();
-
-    return () => {
-      element.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!selectedConversationId) return;
-    const element = messageListRef.current;
-    if (!element) return;
-    if (shouldAutoScrollRef.current) {
-      element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
-    }
-  }, [messages, selectedConversationId]);
+    },
+    [],
+  );
 
   const getPartnerTypeForConversation = useCallback(
     (conversationId: string) => {
@@ -532,10 +512,7 @@ export default function ChatPage() {
   
 
   const partnerStatus =
-    statuses[savedPartnerProfile?.id ?? ""] ??
-    statuses[partnerType] ??
-    statuses["seller"] ??
-    statuses["cs"] ??
+    statuses[selectedConversationId ?? ""] ??
     null;
 
   const statusLabel = selectedConversationId
@@ -574,7 +551,7 @@ export default function ChatPage() {
     }
 
     clearConversationUnread(conversationId);
-    markConversationRead(conversationId, userId);
+    markConversationRead(conversationId);
 
     window.sessionStorage.setItem("chatConversationId", conversationId);
     if (summary) {
@@ -601,8 +578,6 @@ export default function ChatPage() {
 
     const payload: SocketChatMessage = {
       conversationId: selectedConversationId,
-      senderId: userId,
-      senderType: userType,
       type: "text",
       text: trimmed,
       partner: savedPartnerProfile ? {
@@ -614,8 +589,6 @@ export default function ChatPage() {
     };
 
     send(payload);
-    markConversationRead(selectedConversationId, userId);
-    clearConversationUnread(selectedConversationId);
     setText("");
   };
 
@@ -651,6 +624,7 @@ export default function ChatPage() {
         onTextChange={setText}
         handleSend={handleSend}
         handleScrollToBottom={handleScrollToBottom}
+        onMessageListScroll={handleMessageListScroll}
         messageListRef={messageListRef}
         userId={userId}
         userType={userType}

@@ -45,15 +45,15 @@ export default function ChatList({
                 : "hover:bg-gray-50 active:bg-gray-100"
             }`}
           >
-            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sky-100 text-xs font-semibold text-sky-700">
               {userType === "seller" ? (
                 getAvatarInitial(item.partnerName)
               ) : item.partnerImage ? (
                 <Image
                   src={item.partnerImage}
                   alt={item.partnerName || "Partner"}
-                  width={56}
-                  height={56}
+                  width={40}
+                  height={40}
                   className="h-full w-full object-cover"
                 />
               ) : (
@@ -64,10 +64,10 @@ export default function ChatList({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h3
-                  className={`min-w-0 flex-1 truncate text-[15px] ${
+                    className={`min-w-0 flex-1 truncate text-lg ${
                     item.unreadCount > 0
                       ? "font-semibold text-gray-900"
-                      : "font-medium text-gray-800"
+                        : "font-semibold text-gray-900"
                   }`}
                 >
                   {item.partnerName}

@@ -107,25 +107,15 @@ export const canSeeConversation = (
   conversation: ConversationItem,
   userType: UserType,
 ) => {
-  if (!conversation.participants.includes(userType)) {
+  const participantTypes = conversation.participants.map((participant) =>
+    typeof participant === "string" ? participant : participant.type,
+  );
+
+  if (!participantTypes.includes(userType)) {
     return false;
   }
 
-  const ids = (conversation.id ?? "").split("-");
-
-  if (userType === "buyer") {
-    return ids.includes("buyer");
-  }
-
-  if (userType === "seller") {
-    return ids.includes("seller");
-  }
-
-  if (userType === "cs") {
-    return ids.includes("cs");
-  }
-
-  return false;
+  return true;
 };
 
 export const getAvatarInitial = (name: string) => {
