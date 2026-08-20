@@ -169,22 +169,7 @@ export default function ChatMessage({
                   </p>
                 ) : null}
 
-                {currentUserType !== "buyer" && type === "product" ? (
-                  <div className="mt-3 flex items-center justify-center gap-2 border-t border-gray-200 pt-3">
-                    <span className="text-[14px] font-medium text-gray-800">
-                      {productPreview.id}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={handleCopyProductId}
-                      className="shrink-0 text-[#6b9ed8] transition-colors hover:text-[#4285c5]"
-                      aria-label="Salin ID produk"
-                    >
-                      <Copy size={17} strokeWidth={1.8} />
-                    </button>
-                  </div>
-                ) : (
+                {currentUserType === "buyer" || type !== "product" ? (
                   <Button
                     type="primary"
                     onClick={handleViewProduct}
@@ -192,8 +177,33 @@ export default function ChatMessage({
                   >
                     Lihat Produk
                   </Button>
-                )}
+                ) : null}
               </div>
+
+              {currentUserType !== "buyer" && type === "product" ? (
+                <div className="border-t border-gray-200 bg-white px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="shrink-0 text-[13px] text-gray-500">
+                      ID Produk
+                    </span>
+
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-[14px] font-medium text-gray-800">
+                        {productPreview.id}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={handleCopyProductId}
+                        className="shrink-0 text-[#6b9ed8] transition-colors hover:text-[#4285c5]"
+                        aria-label="Salin ID produk"
+                      >
+                        <Copy size={17} strokeWidth={1.8} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
 

@@ -576,6 +576,12 @@ export default function ChatPage() {
       return;
     }
 
+    const normalized = trimmed.replace(/[\s\-().]/g, "");
+    if (/(?:\+?62|0)8\d{8,12}/.test(normalized)) {
+      setText("");
+      return;
+    }
+
     const payload: SocketChatMessage = {
       conversationId: selectedConversationId,
       type: "text",
