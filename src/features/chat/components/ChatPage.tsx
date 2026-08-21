@@ -309,9 +309,11 @@ export default function ChatPage() {
           query.set("role", "seller");
         } else if (userType === "cs") {
           query.set("role", "cs");
+        } else {
+          query.set("role", "buyer");
         }
 
-        if (userId && userType !== "buyer") {
+        if (userId) {
           query.set("userId", userId);
         }
 

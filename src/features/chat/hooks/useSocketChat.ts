@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 
 export type UserType = "buyer" | "seller" | "cs";
@@ -119,6 +119,20 @@ export default function useSocketChat({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [statuses, setStatuses] = useState<Record<string, UserStatus>>({});
 
+  const joinConversation = useCallback((id: string) => {
+    const socket = socketRef.current;
+    if (!socket || !socket.connected || !id) return;
+    if (joinedConversationIdsRef.current.has(id)) return;
+    socket.emit("join-conversation", { conversationId: id }, (joined: boolean) => {
+      if (!joined) return;
+      joinedConversationIdsRef.current.add(id);
+      if (pendingReadConversationIdsRef.current.has(id)) {
+        socket.emit("mark-conversation-read", { conversationId: id });
+        pendingReadConversationIdsRef.current.delete(id);
+      }
+    });
+  }, []);
+
   useEffect(() => {
     conversationIdRef.current = conversationId;
   }, [conversationId]);
@@ -154,11 +168,13 @@ export default function useSocketChat({
         joinConversation(currentConversation);
       }
       pendingReadConversationIdsRef.current.forEach((pendingConversationId) => {
-        socket.emit("mark-conversation-read", {
-          conversationId: pendingConversationId,
-        });
+        if (joinedConversationIds.has(pendingConversationId)) {
+          socket.emit("mark-conversation-read", {
+            conversationId: pendingConversationId,
+          });
+          pendingReadConversationIdsRef.current.delete(pendingConversationId);
+        }
       });
-      pendingReadConversationIdsRef.current.clear();
     };
 
     const handleDisconnect = () => {
@@ -189,9 +205,12 @@ export default function useSocketChat({
       messageIds?: string[];
       readerId?: string;
     }) => {
+      if (!payload.readerId) return;
+
       setMessages((prev) =>
         prev.map((message) =>
           message.conversationId === payload.conversationId &&
+          message.senderId !== payload.readerId &&
           (!payload.messageIds || payload.messageIds.includes(message._id as string))
             ? { ...message, isRead: true }
             : message,
@@ -223,7 +242,7 @@ export default function useSocketChat({
       socketRef.current = null;
       joinedConversationIds.clear();
     };
-  }, [url, userId, userType]);
+  }, [joinConversation, url, userId, userType]);
 
   function send(payload: ChatMessage) {
     const socket = socketRef.current;
@@ -231,17 +250,9 @@ export default function useSocketChat({
     socket.emit("send-message", payload);
   }
 
-  function joinConversation(id: string) {
-    const socket = socketRef.current;
-    if (!socket || !socket.connected || !id) return;
-    if (joinedConversationIdsRef.current.has(id)) return;
-    joinedConversationIdsRef.current.add(id);
-    socket.emit("join-conversation", { conversationId: id });
-  }
-
   function markConversationRead(conversationId: string) {
     const socket = socketRef.current;
-    if (!socket?.connected) {
+    if (!socket?.connected || !joinedConversationIdsRef.current.has(conversationId)) {
       pendingReadConversationIdsRef.current.add(conversationId);
       return;
     }
@@ -286,9 +297,8 @@ export default function useSocketChat({
 
     if (joinedConversationIdsRef.current.has(conversationId)) return;
 
-    joinedConversationIdsRef.current.add(conversationId);
-    socket.emit("join-conversation", { conversationId });
-  }, [connected, conversationId]);
+    joinConversation(conversationId);
+  }, [connected, conversationId, joinConversation]);
 
   function getSocket() {
     return socketRef.current;
