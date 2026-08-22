@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import axios from "axios";
 import { io, type Socket } from "socket.io-client";
 
 export type UserType = "buyer" | "seller" | "cs";
@@ -266,9 +267,7 @@ export default function useSocketChat({
     async function load() {
       try {
         const base = url.replace(/\/$/, "");
-        const res = await fetch(`${base}/messages/${conversationId}`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const { data } = await axios.get(`${base}/messages/${conversationId}`);
         if (cancelled) return;
         setMessages(data || []);
       } catch {

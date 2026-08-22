@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import type { ProductDetail } from "@/types/product";
 
@@ -16,12 +17,9 @@ export function useAutolarisProductDetail(
         throw new Error("Invalid product slug");
       }
 
-      const response = await fetch(`/api/v1/produk/detail/${encodeURIComponent(slug)}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch product detail");
-      }
-
-      const data = await response.json();
+      const { data } = await axios.get(
+        `/api/v1/produk/detail/${encodeURIComponent(slug)}`,
+      );
       return (data?.data ?? data) as ProductDetail;
     },
     enabled: enabled && !!slug && typeof slug === "string",

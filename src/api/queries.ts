@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import type { ProductDetail } from "@/types/product";
 
@@ -8,11 +9,7 @@ export function useProductDetail(
   return useQuery({
     queryKey: ["product", id],
     queryFn: async () => {
-      const response = await fetch(`/api/products/${id}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch product detail");
-      }
-      const data = await response.json();
+      const { data } = await axios.get(`/api/products/${id}`);
       return data.product as ProductDetail;
     },
     staleTime: 1000 * 60 * 5,

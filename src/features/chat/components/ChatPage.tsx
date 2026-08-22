@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import axios from "axios";
 import { PageHeader } from "@/components/layout/PageHeader";
 import type {
   ChatMessage as SocketChatMessage,
@@ -20,6 +21,7 @@ import ChatList from "@/features/chat/components/ChatList";
 import ChatPanel from "@/features/chat/components/ChatPanel";
 import {
   canSeeConversation,
+  formatActivityStatus,
   getConversationTitle,
   getMessagePreview,
 } from "@/features/chat/utils";
@@ -59,6 +61,7 @@ export default function ChatPage() {
     string | null
   >(null);
   const selectedConversationIdRef = useRef<string | null>(null);
+  const readConversationIdsRef = useRef(new Set<string>());
   const [userType, setUserType] = useState<UserType>("buyer");
   const [userId, setUserId] = useState<string>("buyer");
   const [identityReady, setIdentityReady] = useState(false);
@@ -69,9 +72,25 @@ export default function ChatPage() {
     type?: UserType;
   } | null>(null);
   const [text, setText] = useState("");
+  const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const shouldAutoScrollRef = useRef(true);
   const messageListRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchValue(searchValue.trim());
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [searchValue]);
 
   const resolvePartnerFromConversation = useCallback(
     (
@@ -108,6 +127,9 @@ export default function ChatPage() {
       const lastMessageAt = message.createdAt || new Date().toISOString();
       const preview = getMessagePreview(message as MessageItem);
       const isIncoming = isIncomingForUser(message, userId, userType);
+      if (isIncoming) {
+        readConversationIdsRef.current.delete(conversationId);
+      }
 
       setSummaries((prev) => {
         const existing = prev.find(
@@ -120,10 +142,14 @@ export default function ChatPage() {
               item.conversationId === conversationId
                 ? {
                     ...item,
-                  partnerName: message.sender?.name ?? item.partnerName,
+                  partnerName: isIncoming
+                    ? message.sender?.name ?? item.partnerName
+                    : item.partnerName,
                     lastMessage: preview,
                     lastMessageAt,
-                    unreadCount: existing.unreadCount + (isIncoming ? 1 : 0),
+                    unreadCount:
+                      existing.unreadCount +
+                      (isIncoming ? 1 : 0),
                   }
                 : item,
             )
@@ -317,8 +343,12 @@ export default function ChatPage() {
           query.set("userId", userId);
         }
 
+        if (debouncedSearchValue) {
+          query.set("search", debouncedSearchValue);
+        }
+
         const roleSpecificUrl = `${CHAT_API_BASE}/conversations${query.toString() ? `?${query.toString()}` : ""}`;
-        const roleSpecificRes = await fetch(roleSpecificUrl);
+        const { data: roleSpecificData } = await axios.get(roleSpecificUrl);
         let data = [] as Array<
           ConversationItem & {
             conversationId?: string;
@@ -332,9 +362,7 @@ export default function ChatPage() {
           }
         >;
 
-        if (roleSpecificRes.ok) {
-          data = (await roleSpecificRes.json()) as typeof data;
-        }
+        data = roleSpecificData as typeof data;
 
         const available = data.filter((conversation) => {
           const conversationId =
@@ -356,15 +384,15 @@ export default function ChatPage() {
               conversation.threadId ?? conversation.id ?? conversation.conversationId ?? "";
 
             try {
-              const res = await fetch(
+              const { data: messages } = await axios.get<MessageItem[]>(
                 `${CHAT_API_BASE}/messages/${rawConversationId}`,
               );
-
-              const messages = (await res.json()) as MessageItem[];
               const lastMessage = messages.length
                 ? messages[messages.length - 1]
                 : null;
-              const unreadCount = messages.reduce((count, message) => {
+              const unreadCount = readConversationIdsRef.current.has(rawConversationId)
+                ? 0
+                : messages.reduce((count, message) => {
                 if (!message.isRead && isIncomingForUser(message, userId, userType)) {
                   return count + 1;
                 }
@@ -408,7 +436,7 @@ export default function ChatPage() {
 
         setSummaries(sortedDetails);
 
-        if (sortedDetails.length === 0) {
+        if (sortedDetails.length === 0 && !debouncedSearchValue) {
           setSelectedConversationId(null);
           selectedConversationIdRef.current = null;
           setSavedPartnerProfile(null);
@@ -443,7 +471,13 @@ export default function ChatPage() {
       active = false;
       window.clearInterval(refreshTimer);
     };
-  }, [identityReady, userType, userId, resolvePartnerFromConversation]);
+  }, [
+    identityReady,
+    userType,
+    userId,
+    debouncedSearchValue,
+    resolvePartnerFromConversation,
+  ]);
 
   // Sync partner profile when window regains focus (e.g., returning from live chat page)
   useEffect(() => {
@@ -519,18 +553,7 @@ export default function ChatPage() {
 
   const statusLabel = selectedConversationId
     ? partnerStatus
-      ? partnerStatus.online
-        ? "Online"
-        : partnerStatus.lastSeen
-          ? `Last seen ${new Date(partnerStatus.lastSeen).toLocaleTimeString(
-              [],
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-              },
-            )}`
-          : "Offline"
+      ? formatActivityStatus(partnerStatus.online, partnerStatus.lastSeen, currentTime)
       : `${partnerType === "seller" ? "Seller" : partnerType === "cs" ? "Customer Service" : "Chat"} status tidak tersedia`
     : "";
 
@@ -552,6 +575,7 @@ export default function ChatPage() {
       });
     }
 
+    readConversationIdsRef.current.add(conversationId);
     clearConversationUnread(conversationId);
     markConversationRead(conversationId);
 
@@ -597,6 +621,8 @@ export default function ChatPage() {
     };
 
     send(payload);
+    clearConversationUnread(selectedConversationId);
+    markConversationRead(selectedConversationId);
     setText("");
   };
 
@@ -618,6 +644,8 @@ export default function ChatPage() {
           selectedConversationId={selectedConversationId}
           onOpenConversation={handleOpenConversation}
           userType={userType}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
         />
       </aside>
       <ChatPanel

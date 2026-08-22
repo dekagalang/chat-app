@@ -6,6 +6,7 @@ import type {
   UserType,
 } from "@/features/chat/hooks/useSocketChat";
 import { formatDateLabel, getAvatarInitial } from "@/features/chat/utils";
+import ChatSearchBar from "@/features/chat/components/ChatSearchBar";
 
 export default function ChatList({
   loading,
@@ -13,6 +14,8 @@ export default function ChatList({
   selectedConversationId,
   onOpenConversation,
   userType,
+  searchValue,
+  onSearchChange,
 }: {
   loading: boolean;
   summaries: ConversationSummary[];
@@ -22,9 +25,12 @@ export default function ChatList({
     summary?: ConversationSummary,
   ) => void;
   userType: UserType;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
 }) {
   return (
     <div className="h-[calc(100vh-56px)] overflow-y-auto px-4 py-4">
+      <ChatSearchBar value={searchValue} onChange={onSearchChange} />
       {loading ? (
         <div className="px-3 py-10 text-center text-sm text-gray-500">
           Memuat daftar chat...

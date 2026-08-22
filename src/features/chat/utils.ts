@@ -56,6 +56,46 @@ export const formatTime = (time?: string) => {
   });
 };
 
+export const formatActivityStatus = (
+  online: boolean,
+  lastSeen?: string | null,
+  now = new Date(),
+) => {
+  if (online) return "Online";
+  if (!lastSeen) return "Terakhir aktif baru saja";
+
+  const date = new Date(lastSeen);
+  const elapsedMinutes = Math.max(
+    0,
+    Math.floor((now.getTime() - date.getTime()) / 60_000),
+  );
+
+  if (elapsedMinutes < 1) return "Terakhir aktif baru saja";
+  if (elapsedMinutes < 60) return `Terakhir aktif ${elapsedMinutes} menit yang lalu`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `Terakhir aktif ${elapsedHours} jam yang lalu`;
+
+  const time = date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const isToday = date.toDateString() === now.toDateString();
+  if (isToday) return `Terakhir aktif hari ini, ${time}`;
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return `Terakhir aktif kemarin, ${time}`;
+  }
+
+  return `Terakhir aktif ${date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+  })}, ${time}`;
+};
+
 export const formatDateLabel = (time?: string) => {
   if (!time) return "";
 
