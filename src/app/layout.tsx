@@ -8,6 +8,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Chat App",
   description: "Chat application copied from Autolaris module",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
