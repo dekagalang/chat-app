@@ -30,7 +30,10 @@ export function debounce(
   }, delay);
 }
 
-export function clearDebouncedMap<Key>(timeouts: Map<Key, TimeoutHandle>, key: Key) {
+export function clearDebouncedMap<Key>(
+  timeouts: Map<Key, TimeoutHandle>,
+  key: Key,
+) {
   const existingTimeout = timeouts.get(key);
   if (existingTimeout) {
     clearTimeout(existingTimeout);
@@ -38,7 +41,12 @@ export function clearDebouncedMap<Key>(timeouts: Map<Key, TimeoutHandle>, key: K
   }
 }
 
-export function debounceMap<Key>(timeouts: Map<Key, TimeoutHandle>, key: Key, callback: () => void, delay = 500) {
+export function debounceMap<Key>(
+  timeouts: Map<Key, TimeoutHandle>,
+  key: Key,
+  callback: () => void,
+  delay = 500,
+) {
   clearDebouncedMap(timeouts, key);
 
   const timeout = setTimeout(callback, delay);

@@ -70,22 +70,26 @@ export default function ChatList({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h3
-                    className={`min-w-0 flex-1 truncate text-lg ${
+                  className={`min-w-0 flex-1 truncate text-lg ${
                     item.unreadCount > 0
                       ? "font-semibold text-gray-900"
-                        : "font-semibold text-gray-900"
+                      : "font-semibold text-gray-900"
                   }`}
                 >
                   {item.partnerName}
                 </h3>
                 <span className="shrink-0 text-xs text-gray-400">
-                  {item.lastMessageAt ? formatDateLabel(item.lastMessageAt) : ""}
+                  {item.lastMessageAt
+                    ? formatDateLabel(item.lastMessageAt)
+                    : ""}
                 </span>
               </div>
               <div className="mt-1 flex items-center gap-2">
                 <p
                   className={`min-w-0 flex-1 truncate text-sm ${
-                    item.unreadCount > 0 ? "font-medium text-gray-700" : "text-gray-500"
+                    item.unreadCount > 0
+                      ? "font-medium text-gray-700"
+                      : "text-gray-500"
                   }`}
                 >
                   {item.lastMessage}

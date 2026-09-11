@@ -39,7 +39,7 @@ export default function ChatPanel({
     type?: UserType;
   } | null;
   partnerAvatarClass: string;
-  
+
   partnerName: string;
   statusLabel: string;
   showScrollToBottom: boolean;
@@ -62,7 +62,9 @@ export default function ChatPanel({
               <div className="flex h-full items-center gap-3">
                 <div
                   className={`relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full ${
-                    userType === "seller" ? "bg-sky-100 text-sky-700" : partnerAvatarClass
+                    userType === "seller"
+                      ? "bg-sky-100 text-sky-700"
+                      : partnerAvatarClass
                   } text-xs font-semibold`}
                 >
                   {userType === "seller" ? (
@@ -95,8 +97,12 @@ export default function ChatPanel({
             >
               {messages.length === 0 ? (
                 <div className="mx-auto mt-12 w-full max-w-xl rounded-3xl border border-dashed border-gray-200 bg-white px-5 py-10 text-center text-sm text-gray-500">
-                  <div className="text-lg font-semibold text-gray-900">Belum ada pesan</div>
-                  <div className="mt-2 text-sm text-gray-500">Pesan dalam percakapan ini akan muncul di sini.</div>
+                  <div className="text-lg font-semibold text-gray-900">
+                    Belum ada pesan
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500">
+                    Pesan dalam percakapan ini akan muncul di sini.
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
@@ -108,7 +114,8 @@ export default function ChatPanel({
                     const previousDate = previous?.createdAt
                       ? new Date(previous.createdAt).toDateString()
                       : "";
-                    const showDateHeader = idx === 0 || currentDate !== previousDate;
+                    const showDateHeader =
+                      idx === 0 || currentDate !== previousDate;
 
                     return (
                       <React.Fragment key={message._id ?? idx}>
@@ -116,7 +123,9 @@ export default function ChatPanel({
                           <div className="my-4 flex justify-center">
                             <div className="rounded-xl bg-white px-4 py-1 text-xs text-gray-500 shadow-sm">
                               {message.createdAt
-                                ? new Date(message.createdAt).toLocaleDateString("id-ID", {
+                                ? new Date(
+                                    message.createdAt,
+                                  ).toLocaleDateString("id-ID", {
                                     weekday: "long",
                                     day: "numeric",
                                     month: "long",
@@ -184,11 +193,13 @@ export default function ChatPanel({
         ) : (
           <div className="flex h-full items-center justify-center px-6 py-10">
             <div className="w-full max-w-xl rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center text-gray-500 shadow-sm">
-                <div className="text-xl font-semibold text-gray-900">Belum ada percakapan</div>
-                <p className="mt-3 text-sm text-gray-500">
-                  Percakapan yang masuk akan muncul di sini.
-                </p>
+              <div className="text-xl font-semibold text-gray-900">
+                Belum ada percakapan
               </div>
+              <p className="mt-3 text-sm text-gray-500">
+                Percakapan yang masuk akan muncul di sini.
+              </p>
+            </div>
           </div>
         )}
       </div>

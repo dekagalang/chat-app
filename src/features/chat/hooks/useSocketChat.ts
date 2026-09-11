@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
@@ -124,14 +124,18 @@ export default function useSocketChat({
     const socket = socketRef.current;
     if (!socket || !socket.connected || !id) return;
     if (joinedConversationIdsRef.current.has(id)) return;
-    socket.emit("join-conversation", { conversationId: id }, (joined: boolean) => {
-      if (!joined) return;
-      joinedConversationIdsRef.current.add(id);
-      if (pendingReadConversationIdsRef.current.has(id)) {
-        socket.emit("mark-conversation-read", { conversationId: id });
-        pendingReadConversationIdsRef.current.delete(id);
-      }
-    });
+    socket.emit(
+      "join-conversation",
+      { conversationId: id },
+      (joined: boolean) => {
+        if (!joined) return;
+        joinedConversationIdsRef.current.add(id);
+        if (pendingReadConversationIdsRef.current.has(id)) {
+          socket.emit("mark-conversation-read", { conversationId: id });
+          pendingReadConversationIdsRef.current.delete(id);
+        }
+      },
+    );
   }, []);
 
   useEffect(() => {
@@ -212,7 +216,8 @@ export default function useSocketChat({
         prev.map((message) =>
           message.conversationId === payload.conversationId &&
           message.senderId !== payload.readerId &&
-          (!payload.messageIds || payload.messageIds.includes(message._id as string))
+          (!payload.messageIds ||
+            payload.messageIds.includes(message._id as string))
             ? { ...message, isRead: true }
             : message,
         ),
@@ -253,7 +258,10 @@ export default function useSocketChat({
 
   function markConversationRead(conversationId: string) {
     const socket = socketRef.current;
-    if (!socket?.connected || !joinedConversationIdsRef.current.has(conversationId)) {
+    if (
+      !socket?.connected ||
+      !joinedConversationIdsRef.current.has(conversationId)
+    ) {
       pendingReadConversationIdsRef.current.add(conversationId);
       return;
     }
@@ -289,7 +297,9 @@ export default function useSocketChat({
 
     joinedConversationIdsRef.current.forEach((joinedConversationId) => {
       if (joinedConversationId !== conversationId) {
-        socket.emit("leave-conversation", { conversationId: joinedConversationId });
+        socket.emit("leave-conversation", {
+          conversationId: joinedConversationId,
+        });
         joinedConversationIdsRef.current.delete(joinedConversationId);
       }
     });

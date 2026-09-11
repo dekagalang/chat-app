@@ -8,7 +8,10 @@ import { Check, CheckCheck, Copy } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/format";
 import { formatOrderDate, formatOrderStatus } from "@/lib/utils";
-import type { ChatMessage as ChatMessageType, UserType } from "@/features/chat/hooks/useSocketChat";
+import type {
+  ChatMessage as ChatMessageType,
+  UserType,
+} from "@/features/chat/hooks/useSocketChat";
 
 export default function ChatMessage({
   message,
@@ -60,14 +63,15 @@ export default function ChatMessage({
         statusLabel: formatOrderStatus(
           orderSnapshot.statusLabel || orderSnapshot.status || "",
         ),
-        orderNumber: orderSnapshot.orderNumber || String(orderSnapshot.orderId || ""),
+        orderNumber:
+          orderSnapshot.orderNumber || String(orderSnapshot.orderId || ""),
         orderDate: orderSnapshot.orderDate || "",
       }
     : null;
 
   const showProductPreview = Boolean(
     type === "product" &&
-      (productPreview.name || productPreview.image || productPreview.price),
+    (productPreview.name || productPreview.image || productPreview.price),
   );
 
   const showOrderPreview = Boolean(type === "order" && orderPreview);
@@ -85,7 +89,10 @@ export default function ChatMessage({
     if (!orderSnapshot) return;
 
     const orderSlug =
-      orderSnapshot.orderId || orderSnapshot.orderNumber || orderSnapshot.orderDate || "";
+      orderSnapshot.orderId ||
+      orderSnapshot.orderNumber ||
+      orderSnapshot.orderDate ||
+      "";
 
     if (!orderSlug) return;
 
@@ -97,7 +104,8 @@ export default function ChatMessage({
   };
 
   const handleCopyOrderNumber = async () => {
-    const orderNumber = orderSnapshot?.orderNumber || String(orderSnapshot?.orderId || "");
+    const orderNumber =
+      orderSnapshot?.orderNumber || String(orderSnapshot?.orderId || "");
 
     if (!orderNumber) return;
 
@@ -249,7 +257,10 @@ export default function ChatMessage({
                   </p>
 
                   <p className="mt-2 text-[13px] text-gray-500">
-                    {orderPreview.itemCount} item, Total: <span className="font-medium text-gray-700">{orderPreview.total}</span>
+                    {orderPreview.itemCount} item, Total:{" "}
+                    <span className="font-medium text-gray-700">
+                      {orderPreview.total}
+                    </span>
                   </p>
 
                   {orderPreview.statusLabel ? (

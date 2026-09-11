@@ -41,7 +41,11 @@ const DEFAULT_CONVERSATIONS: ConversationItem[] = [
 ];
 
 const isIncomingForUser = (
-  message: { senderId?: string; senderType?: string | null; sender?: { type?: string } },
+  message: {
+    senderId?: string;
+    senderType?: string | null;
+    sender?: { type?: string };
+  },
   userId: string,
   userType: UserType,
 ) => {
@@ -106,7 +110,10 @@ export default function ChatPage() {
       },
     ) => {
       const conversationId =
-        conversation.threadId ?? conversation.id ?? conversation.conversationId ?? "";
+        conversation.threadId ??
+        conversation.id ??
+        conversation.conversationId ??
+        "";
       const partnerId = conversationId;
       const partnerName =
         conversation.partner?.name ??
@@ -142,14 +149,12 @@ export default function ChatPage() {
               item.conversationId === conversationId
                 ? {
                     ...item,
-                  partnerName: isIncoming
-                    ? message.sender?.name ?? item.partnerName
-                    : item.partnerName,
+                    partnerName: isIncoming
+                      ? (message.sender?.name ?? item.partnerName)
+                      : item.partnerName,
                     lastMessage: preview,
                     lastMessageAt,
-                    unreadCount:
-                      existing.unreadCount +
-                      (isIncoming ? 1 : 0),
+                    unreadCount: existing.unreadCount + (isIncoming ? 1 : 0),
                   }
                 : item,
             )
@@ -168,7 +173,8 @@ export default function ChatPage() {
             conversationId,
             partnerId: conversationId,
             partnerName:
-              message.sender?.name ?? getConversationTitle(conversationId, userType),
+              message.sender?.name ??
+              getConversationTitle(conversationId, userType),
             lastMessage: preview,
             lastMessageAt,
             unreadCount: isIncoming ? 1 : 0,
@@ -366,7 +372,10 @@ export default function ChatPage() {
 
         const available = data.filter((conversation) => {
           const conversationId =
-            conversation.threadId ?? conversation.id ?? conversation.conversationId ?? "";
+            conversation.threadId ??
+            conversation.id ??
+            conversation.conversationId ??
+            "";
           const participants = Array.isArray(conversation.participants)
             ? conversation.participants
             : (DEFAULT_CONVERSATIONS.find((c) => c.id === conversationId)
@@ -381,7 +390,10 @@ export default function ChatPage() {
         const details = await Promise.all(
           available.map(async (conversation) => {
             const rawConversationId =
-              conversation.threadId ?? conversation.id ?? conversation.conversationId ?? "";
+              conversation.threadId ??
+              conversation.id ??
+              conversation.conversationId ??
+              "";
 
             try {
               const { data: messages } = await axios.get<MessageItem[]>(
@@ -390,14 +402,19 @@ export default function ChatPage() {
               const lastMessage = messages.length
                 ? messages[messages.length - 1]
                 : null;
-              const unreadCount = readConversationIdsRef.current.has(rawConversationId)
+              const unreadCount = readConversationIdsRef.current.has(
+                rawConversationId,
+              )
                 ? 0
                 : messages.reduce((count, message) => {
-                if (!message.isRead && isIncomingForUser(message, userId, userType)) {
-                  return count + 1;
-                }
-                return count;
-              }, 0);
+                    if (
+                      !message.isRead &&
+                      isIncomingForUser(message, userId, userType)
+                    ) {
+                      return count + 1;
+                    }
+                    return count;
+                  }, 0);
 
               const { partnerId, partnerName, partnerImage } =
                 resolvePartnerFromConversation(conversation);
@@ -423,16 +440,16 @@ export default function ChatPage() {
 
         if (!active) return;
 
-        const sortedDetails = details.filter(
-          (detail): detail is ConversationSummary => detail !== null,
-        ).sort((a, b) => {
-          if (!a.lastMessageAt) return 1;
-          if (!b.lastMessageAt) return -1;
-          return (
-            new Date(b.lastMessageAt).getTime() -
-            new Date(a.lastMessageAt).getTime()
-          );
-        });
+        const sortedDetails = details
+          .filter((detail): detail is ConversationSummary => detail !== null)
+          .sort((a, b) => {
+            if (!a.lastMessageAt) return 1;
+            if (!b.lastMessageAt) return -1;
+            return (
+              new Date(b.lastMessageAt).getTime() -
+              new Date(a.lastMessageAt).getTime()
+            );
+          });
 
         setSummaries(sortedDetails);
 
@@ -545,15 +562,15 @@ export default function ChatPage() {
         ? "bg-emerald-100 text-emerald-700"
         : "bg-slate-200 text-slate-700";
 
-  
-
-  const partnerStatus =
-    statuses[selectedConversationId ?? ""] ??
-    null;
+  const partnerStatus = statuses[selectedConversationId ?? ""] ?? null;
 
   const statusLabel = selectedConversationId
     ? partnerStatus
-      ? formatActivityStatus(partnerStatus.online, partnerStatus.lastSeen, currentTime)
+      ? formatActivityStatus(
+          partnerStatus.online,
+          partnerStatus.lastSeen,
+          currentTime,
+        )
       : `${partnerType === "seller" ? "Seller" : partnerType === "cs" ? "Customer Service" : "Chat"} status tidak tersedia`
     : "";
 
@@ -612,12 +629,14 @@ export default function ChatPage() {
       conversationId: selectedConversationId,
       type: "text",
       text: trimmed,
-      partner: savedPartnerProfile ? {
-        id: savedPartnerProfile.id,
-        name: savedPartnerProfile.name,
-        image: savedPartnerProfile.image,
-        type: savedPartnerProfile.type ?? partnerType,
-      } : undefined,
+      partner: savedPartnerProfile
+        ? {
+            id: savedPartnerProfile.id,
+            name: savedPartnerProfile.name,
+            image: savedPartnerProfile.image,
+            type: savedPartnerProfile.type ?? partnerType,
+          }
+        : undefined,
     };
 
     send(payload);

@@ -71,7 +71,8 @@ export const formatActivityStatus = (
   );
 
   if (elapsedMinutes < 1) return "Terakhir aktif baru saja";
-  if (elapsedMinutes < 60) return `Terakhir aktif ${elapsedMinutes} menit yang lalu`;
+  if (elapsedMinutes < 60)
+    return `Terakhir aktif ${elapsedMinutes} menit yang lalu`;
 
   const elapsedHours = Math.floor(elapsedMinutes / 60);
   if (elapsedHours < 24) return `Terakhir aktif ${elapsedHours} jam yang lalu`;
