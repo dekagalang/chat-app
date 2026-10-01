@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors 'self' https://cpanel.autolaris.com",
+            value:
+              "frame-ancestors 'self' https://cpanel.autolaris.com https://app.autolaris.com",
           },
         ],
       },
