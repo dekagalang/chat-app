@@ -23,8 +23,9 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## Iframe Embedding
 
 The app allows iframe embedding by `https://cpanel.autolaris.com`,
-`https://app.autolaris.com`, and `https://seller.autolaris.com` through its
-Content Security Policy `frame-ancestors` directive. The production reverse proxy or hosting layer must not add
+`https://app.autolaris.com`, `https://seller.autolaris.com`, and
+`https://stg-seller.autolaris.com` through its Content Security Policy
+`frame-ancestors` directive. The production reverse proxy or hosting layer must not add
 `X-Frame-Options: SAMEORIGIN` or `DENY`, because either header will still block
 cross-origin embedding.
 
