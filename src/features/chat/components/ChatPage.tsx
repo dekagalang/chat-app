@@ -101,6 +101,9 @@ export default function ChatPage() {
       conversation: ConversationItem & {
         conversationId?: string;
         threadId?: string;
+        buyerId?: string | null;
+        sellerId?: string | null;
+        csId?: string | null;
         partner?: {
           id?: string | number | null;
           name?: string | null;
@@ -114,7 +117,13 @@ export default function ChatPage() {
         conversation.id ??
         conversation.conversationId ??
         "";
-      const partnerId = conversationId;
+      const partnerId = String(
+        conversation.partner?.id ??
+          (userType === "buyer"
+            ? conversation.sellerId ?? conversation.csId
+            : conversation.buyerId) ??
+          conversationId,
+      );
       const partnerName =
         conversation.partner?.name ??
         (conversation.partner?.type === "cs" ? "Customer Service" : "Seller");
@@ -123,7 +132,7 @@ export default function ChatPage() {
 
       return { partnerId, partnerName, partnerImage };
     },
-    [],
+    [userType],
   );
 
   const handleChatMessage = useCallback(
