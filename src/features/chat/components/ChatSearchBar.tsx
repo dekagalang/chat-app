@@ -11,7 +11,7 @@ export default function ChatSearchBar({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="sticky top-0 z-10 bg-white px-3 py-3">
+    <div className="bg-white px-3 py-2">
       <Input
         allowClear={{
           clearIcon: <CloseCircleFilled className="text-lg text-gray-400" />,

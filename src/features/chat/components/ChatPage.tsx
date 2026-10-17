@@ -8,7 +8,6 @@ import React, {
   useState,
 } from "react";
 import axios from "axios";
-import { PageHeader } from "@/components/layout/PageHeader";
 import type {
   ChatMessage as SocketChatMessage,
   ConversationItem,
@@ -77,7 +76,6 @@ export default function ChatPage() {
   } | null>(null);
   const [text, setText] = useState("");
   const [searchValue, setSearchValue] = useState("");
-  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const shouldAutoScrollRef = useRef(true);
@@ -87,14 +85,6 @@ export default function ChatPage() {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDebouncedSearchValue(searchValue.trim());
-    }, 350);
-
-    return () => window.clearTimeout(timer);
-  }, [searchValue]);
 
   const resolvePartnerFromConversation = useCallback(
     (
@@ -358,10 +348,6 @@ export default function ChatPage() {
           query.set("userId", userId);
         }
 
-        if (debouncedSearchValue) {
-          query.set("search", debouncedSearchValue);
-        }
-
         const roleSpecificUrl = `${CHAT_API_BASE}/conversations${query.toString() ? `?${query.toString()}` : ""}`;
         const { data: roleSpecificData } = await axios.get(roleSpecificUrl);
         let data = [] as Array<
@@ -462,7 +448,7 @@ export default function ChatPage() {
 
         setSummaries(sortedDetails);
 
-        if (sortedDetails.length === 0 && !debouncedSearchValue) {
+        if (sortedDetails.length === 0) {
           setSelectedConversationId(null);
           selectedConversationIdRef.current = null;
           setSavedPartnerProfile(null);
@@ -501,7 +487,6 @@ export default function ChatPage() {
     identityReady,
     userType,
     userId,
-    debouncedSearchValue,
     resolvePartnerFromConversation,
   ]);
 
@@ -665,7 +650,6 @@ export default function ChatPage() {
   return (
     <div className="flex min-h-screen bg-white">
       <aside className="w-90 border-r border-gray-200 bg-white">
-        <PageHeader title="Chat" />
         <ChatList
           loading={loading}
           summaries={summaries}

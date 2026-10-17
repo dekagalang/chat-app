@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import type {
   ConversationSummary,
@@ -7,6 +8,20 @@ import type {
 } from "@/features/chat/hooks/useSocketChat";
 import { formatDateLabel, getAvatarInitial } from "@/features/chat/utils";
 import ChatSearchBar from "@/features/chat/components/ChatSearchBar";
+
+type ChatListTab = "today" | "all";
+
+function isUpdatedToday(lastMessageAt: string | undefined, today: Date) {
+  if (!lastMessageAt) return false;
+
+  const updatedAt = new Date(lastMessageAt);
+  return (
+    !Number.isNaN(updatedAt.getTime()) &&
+    updatedAt.getFullYear() === today.getFullYear() &&
+    updatedAt.getMonth() === today.getMonth() &&
+    updatedAt.getDate() === today.getDate()
+  );
+}
 
 export default function ChatList({
   loading,
@@ -28,19 +43,69 @@ export default function ChatList({
   searchValue: string;
   onSearchChange: (value: string) => void;
 }) {
+  const [activeTab, setActiveTab] = useState<ChatListTab>("today");
+  const visibleSummaries = useMemo(() => {
+    const today = new Date();
+    const normalizedSearch = searchValue.trim().toLocaleLowerCase("id");
+
+    return summaries
+      .filter(
+        (item) =>
+          activeTab === "all" || isUpdatedToday(item.lastMessageAt, today),
+      )
+      .filter(
+        (item) =>
+          !normalizedSearch ||
+          item.partnerName.toLocaleLowerCase("id").includes(normalizedSearch),
+      )
+      .sort((a, b) => {
+        const dateA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const dateB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        return dateB - dateA;
+      });
+  }, [activeTab, searchValue, summaries]);
+
   return (
-    <div className="h-[calc(100vh-56px)] overflow-y-auto px-4 py-4">
-      <ChatSearchBar value={searchValue} onChange={onSearchChange} />
+    <div className="h-screen overflow-y-auto px-4">
+      <div className="sticky top-0 z-10 bg-white">
+        <ChatSearchBar value={searchValue} onChange={onSearchChange} />
+        <div className="grid grid-cols-2 border-b border-gray-100 px-3">
+          {(
+            [
+              { id: "today", label: "Chat Hari Ini" },
+              { id: "all", label: "Semua Chat" },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              aria-pressed={activeTab === tab.id}
+              className={`h-11 border-b-2 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                ? "border-[#1677ff] text-[#1677ff]"
+                  : "border-transparent text-gray-500"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
       {loading ? (
         <div className="px-3 py-10 text-center text-sm text-gray-500">
           Memuat daftar chat...
         </div>
-      ) : summaries.length === 0 ? (
+      ) : visibleSummaries.length === 0 ? (
         <div className="px-3 py-10 text-center text-sm text-gray-500">
-          Tidak ada chat untuk peran ini.
+          {searchValue.trim()
+            ? "Chat tidak ditemukan."
+            : activeTab === "today"
+              ? "Belum ada chat hari ini."
+              : "Tidak ada chat untuk peran ini."}
         </div>
       ) : (
-        summaries.map((item) => (
+        visibleSummaries.map((item) => (
           <button
             key={item.conversationId}
             type="button"
